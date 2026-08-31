@@ -1,0 +1,152 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  role      String   @default("HOTEL") // HOTEL, OFFICER, ADMIN
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  hotel     Hotel?
+  officer   Officer?
+}
+
+model Hotel {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id])
+  name            String
+  ownerName       String
+  fssaiNumber     String   @unique
+  phone           String
+  address         String
+  city            String
+  isVerified      Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  products        Product[]
+}
+
+model Officer {
+  id             String   @id @default(cuid())
+  userId         String   @unique
+  user           User     @relation(fields: [userId], references: [id])
+  name           String
+  officerId      String   @unique
+  phone          String
+  department     String
+  designation    String
+  assignedArea   String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  inspections    Inspection[]
+  violations     Violation[]
+}
+
+model Product {
+  id                  String   @id @default(cuid())
+  hotelId             String
+  hotel               Hotel    @relation(fields: [hotelId], references: [id])
+  name                String
+  brand               String
+  category            String
+  batchNumber         String
+  manufacturingDate   DateTime
+  expiryDate          DateTime
+  purchaseDate        DateTime
+  supplierName        String
+  quantity            Int
+  description         String?
+  status              String   @default("PENDING") // PENDING, VERIFIED, EXPIRED, FLAGGED, REJECTED
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  images              ProductImage[]
+  bill                Bill?
+  verificationResult  VerificationResult?
+  inspection          Inspection?
+}
+
+model ProductImage {
+  id          String   @id @default(cuid())
+  productId   String
+  product     Product  @relation(fields: [productId], references: [id])
+  url         String
+  type        String   // PRODUCT, LABEL
+  createdAt   DateTime @default(now())
+}
+
+model Bill {
+  id          String   @id @default(cuid())
+  productId   String   @unique
+  product     Product  @relation(fields: [productId], references: [id])
+  url         String
+  createdAt   DateTime @default(now())
+}
+
+model VerificationResult {
+  id                  String   @id @default(cuid())
+  productId           String   @unique
+  product             Product  @relation(fields: [productId], references: [id])
+  isExpired           Boolean
+  billMatch           Boolean
+  overallConfidence   Float
+  ocrData             String   // Stored as JSON string
+  createdAt           DateTime @default(now())
+}
+
+model Inspection {
+  id                  String   @id @default(cuid())
+  productId           String   @unique
+  product             Product  @relation(fields: [productId], references: [id])
+  officerId           String
+  officer             Officer  @relation(fields: [officerId], references: [id])
+  comments            String?
+  actionTaken         String
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  violations          Violation[]
+  report              InspectionReport?
+}
+
+model Violation {
+  id                  String   @id @default(cuid())
+  inspectionId        String
+  inspection          Inspection @relation(fields: [inspectionId], references: [id])
+  officerId           String
+  officer             Officer    @relation(fields: [officerId], references: [id])
+  type                String
+  severity            String   // LOW, MEDIUM, HIGH, CRITICAL
+  description         String
+  status              String   @default("OPEN") // OPEN, UNDER_REVIEW, RESOLVED, ESCALATED
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
+
+model InspectionReport {
+  id                  String   @id @default(cuid())
+  inspectionId        String   @unique
+  inspection          Inspection @relation(fields: [inspectionId], references: [id])
+  reportData          String   // JSON string
+  createdAt           DateTime @default(now())
+}
+
+model Notification {
+  id          String   @id @default(cuid())
+  userId      String
+  title       String
+  message     String
+  isRead      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+}
