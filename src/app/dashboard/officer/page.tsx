@@ -1,10 +1,8 @@
 import { cookies } from 'next/headers'
 import { decrypt } from '@/lib/auth'
-import { PrismaClient } from '@prisma/client'
+import { prisma } from '@/lib/prisma'
 import Link from 'next/link'
 import { PackageSearch, AlertTriangle, FileText, Activity } from 'lucide-react'
-
-const prisma = new PrismaClient()
 
 export default async function OfficerDashboard() {
   const cookieStore = await cookies()

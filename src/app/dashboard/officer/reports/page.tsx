@@ -1,9 +1,7 @@
 import { cookies } from 'next/headers'
 import { decrypt } from '@/lib/auth'
-import { PrismaClient } from '@prisma/client'
+import { prisma } from '@/lib/prisma'
 import { FileText, Download, Eye } from 'lucide-react'
-
-const prisma = new PrismaClient()
 
 export default async function OfficerReportsPage() {
   const cookieStore = await cookies()

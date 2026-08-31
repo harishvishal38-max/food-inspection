@@ -1,8 +1,6 @@
 import { cookies } from 'next/headers'
 import { decrypt } from '@/lib/auth'
-import { PrismaClient } from '@prisma/client'
-
-const prisma = new PrismaClient()
+import { prisma } from '@/lib/prisma'
 
 export default async function AdminOfficersPage() {
   const cookieStore = await cookies()

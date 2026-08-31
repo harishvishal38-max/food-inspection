@@ -1,10 +1,8 @@
 import { cookies } from 'next/headers'
 import { decrypt } from '@/lib/auth'
-import { PrismaClient } from '@prisma/client'
+import { prisma } from '@/lib/prisma'
 import Link from 'next/link'
 import { PackagePlus, CheckCircle, AlertTriangle, Clock, Package } from 'lucide-react'
-
-const prisma = new PrismaClient()
 
 function StatusBadge({ status }: { status: string }) {
   const map: Record<string, string> = {

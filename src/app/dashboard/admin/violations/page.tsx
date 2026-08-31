@@ -17,16 +17,14 @@ const STATUS_COLORS: Record<string, string> = {
   ESCALATED:    'bg-purple-50 text-purple-700',
 }
 
-export default async function OfficerViolationsPage() {
+export default async function AdminViolationsPage() {
   const cookieStore = await cookies()
   const session = await decrypt(cookieStore.get('session')!.value)
-
-  const officer = await prisma.officer.findUnique({ where: { userId: session.id } })
-  if (!officer) return <div>Officer profile not found</div>
+  if (session.role !== 'ADMIN') return <div>Access denied</div>
 
   const violations = await prisma.violation.findMany({
-    where: { officerId: officer.id },
     include: {
+      officer: true,
       inspection: {
         include: {
           product: {
@@ -41,9 +39,12 @@ export default async function OfficerViolationsPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-slate-900">Violations</h1>
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">System Violations</h1>
+          <p className="text-sm text-slate-500 mt-1">All recorded food safety violations across all hotels.</p>
+        </div>
         <span className="bg-red-100 text-red-800 text-xs font-bold px-3 py-1 rounded-full border border-red-200">
-          {violations.filter(v => v.status === 'OPEN').length} Open
+          {violations.filter(v => v.status === 'OPEN').length} Open Violations
         </span>
       </div>
 
@@ -63,7 +64,10 @@ export default async function OfficerViolationsPage() {
                     </span>
                   </div>
                   <p className="text-sm text-slate-500 mt-1">
-                    {v.inspection.product.hotel.name} · {v.inspection.product.name} ({v.inspection.product.batchNumber})
+                    🏨 {v.inspection.product.hotel.name} · Product: {v.inspection.product.name} ({v.inspection.product.batchNumber})
+                  </p>
+                  <p className="text-sm text-slate-500">
+                    🛡️ Reported by: {v.officer.name} ({v.officer.department})
                   </p>
                   <p className="text-sm text-slate-600 mt-2 leading-relaxed">{v.description}</p>
                 </div>
@@ -80,11 +84,7 @@ export default async function OfficerViolationsPage() {
 
         {violations.length === 0 && (
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-12 text-center">
-            <div className="h-14 w-14 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <AlertTriangle className="h-7 w-7 text-emerald-500" />
-            </div>
-            <p className="text-slate-600 font-medium">No violations logged yet.</p>
-            <p className="text-sm text-slate-400 mt-1">Violations you record during inspections will appear here.</p>
+            <p className="text-slate-600 font-medium">No violations recorded across the system.</p>
           </div>
         )}
       </div>

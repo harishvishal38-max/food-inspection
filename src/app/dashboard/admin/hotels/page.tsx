@@ -1,10 +1,8 @@
 import { cookies } from 'next/headers'
 import { decrypt } from '@/lib/auth'
-import { PrismaClient } from '@prisma/client'
+import { prisma } from '@/lib/prisma'
 import Link from 'next/link'
 import { AlertTriangle, CheckCircle, Building, Users, PackageSearch } from 'lucide-react'
-
-const prisma = new PrismaClient()
 
 export default async function AdminHotelsPage() {
   const cookieStore = await cookies()

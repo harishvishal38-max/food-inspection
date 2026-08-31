@@ -1,9 +1,7 @@
 import { cookies } from 'next/headers'
 import { decrypt } from '@/lib/auth'
-import { PrismaClient } from '@prisma/client'
+import { prisma } from '@/lib/prisma'
 import { Bell, CheckCircle } from 'lucide-react'
-
-const prisma = new PrismaClient()
 
 const DEMO_NOTIFICATIONS = [
   {

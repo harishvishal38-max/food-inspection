@@ -1,17 +1,16 @@
 import { cookies } from 'next/headers'
 import { decrypt } from '@/lib/auth'
-import { PrismaClient } from '@prisma/client'
+import { prisma } from '@/lib/prisma'
 import { CheckCircle, AlertTriangle, FileText, Image as ImageIcon, MapPin, Building, Calendar, Info, ShieldCheck } from 'lucide-react'
 import Link from 'next/link'
 
-const prisma = new PrismaClient()
-
-export default async function OfficerInspectionDetails({ params }: { params: { id: string } }) {
+export default async function OfficerInspectionDetails({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
   const cookieStore = await cookies()
   const session = await decrypt(cookieStore.get('session')!.value)
 
   const product = await prisma.product.findUnique({
-    where: { id: params.id },
+    where: { id },
     include: {
       hotel: true,
       verificationResult: true,
