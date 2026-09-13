@@ -14,16 +14,16 @@ export default async function OfficerDashboard() {
 
   if (!officer) return <div>Officer profile not found</div>
 
-  const pendingCount = await prisma.product.count({ where: { status: 'PENDING' } })
+  const pendingCount = await prisma.product.count({ where: { status: { in: ['PENDING', 'EXPIRED', 'FLAGGED'] } } })
   const completedCount = await prisma.inspection.count({ where: { officerId: officer.id } })
   const violationsCount = await prisma.violation.count({ where: { officerId: officer.id } })
   const expiredCount = await prisma.product.count({ where: { status: 'EXPIRED' } })
 
   const pendingInspections = await prisma.product.findMany({
-    where: { status: 'PENDING' },
+    where: { status: { in: ['PENDING', 'EXPIRED', 'FLAGGED'] } },
     include: { hotel: true },
-    take: 10,
-    orderBy: { createdAt: 'asc' }
+    take: 15,
+    orderBy: { createdAt: 'desc' }
   })
 
   return (

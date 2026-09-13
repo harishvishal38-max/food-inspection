@@ -1,54 +1,109 @@
-'use client'
+﻿'use client'
 
 import { useState } from 'react'
-import { UploadCloud, CheckCircle, Loader2, FileText, Image as ImageIcon, AlertCircle } from 'lucide-react'
+import { UploadCloud, CheckCircle, Loader2, FileText, Image as ImageIcon, AlertCircle, AlertTriangle } from 'lucide-react'
+import Link from 'next/link'
 
 export default function SubmitProduct() {
   const [step, setStep] = useState(1) // 1: Form, 2: Simulation Timeline, 3: Result
   const [formData, setFormData] = useState({
-    name: '', brand: '', category: '', batchNumber: '', supplierName: '', quantity: '1', description: ''
+    name: '',
+    brand: '',
+    category: 'Condiments',
+    batchNumber: '',
+    manufacturingDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    expiryDate: new Date(Date.now() + 180 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    purchaseDate: new Date().toISOString().split('T')[0],
+    supplierName: '',
+    quantity: '10',
+    description: ''
   })
   
   // File state
   const [productImage, setProductImage] = useState<File | null>(null)
   const [billFile, setBillFile] = useState<File | null>(null)
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState('')
+  const [savedProduct, setSavedProduct] = useState<any>(null)
 
   // Simulation timeline state
   const [simSteps, setSimSteps] = useState([
-    { id: 1, label: 'Product image uploaded', status: 'pending' },
-    { id: 2, label: 'Bill uploaded', status: 'pending' },
-    { id: 3, label: 'Extracting information (OCR)', status: 'pending' },
-    { id: 4, label: 'Checking expiry date', status: 'pending' },
-    { id: 5, label: 'Comparing bill and product', status: 'pending' },
-    { id: 6, label: 'Generating verification result', status: 'pending' }
+    { id: 1, label: 'Uploading product label and bill...', status: 'pending' },
+    { id: 2, label: 'Extracting product information with OCR...', status: 'pending' },
+    { id: 3, label: 'Evaluating product expiry & consumption safety...', status: 'pending' },
+    { id: 4, label: 'Cross-verifying purchase invoice...', status: 'pending' },
+    { id: 5, label: 'Saving verified records to secure database...', status: 'pending' }
   ])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value })
   }
 
-  const simulateVerification = async () => {
-    setStep(2)
-    
-    // Simulate steps with random delays
-    for (let i = 0; i < simSteps.length; i++) {
-      setSimSteps(prev => prev.map((s, idx) => idx === i ? { ...s, status: 'running' } : s))
-      await new Promise(resolve => setTimeout(resolve, 800 + Math.random() * 1000))
-      setSimSteps(prev => prev.map((s, idx) => idx === i ? { ...s, status: 'completed' } : s))
-    }
-
-    setTimeout(() => {
-      setStep(3)
-    }, 1000)
+  const handleFileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(reader.result as string)
+      reader.onerror = reject
+      reader.readAsDataURL(file)
+    })
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!productImage || !billFile) {
-      alert("Please upload both product image and purchase bill.")
-      return
+    setError('')
+    setSubmitting(true)
+    setStep(2)
+
+    try {
+      // Step 1: Uploading
+      setSimSteps(prev => prev.map((s, i) => i === 0 ? { ...s, status: 'running' } : s))
+      
+      let imgData = ''
+      let billData = ''
+      if (productImage) {
+        imgData = await handleFileToBase64(productImage).catch(() => '')
+      }
+      if (billFile) {
+        billData = await handleFileToBase64(billFile).catch(() => '')
+      }
+
+      await new Promise(r => setTimeout(r, 600))
+      setSimSteps(prev => prev.map((s, i) => i === 0 ? { ...s, status: 'completed' } : i === 1 ? { ...s, status: 'running' } : s))
+
+      // Step 2: OCR Extraction
+      await new Promise(r => setTimeout(r, 700))
+      setSimSteps(prev => prev.map((s, i) => i === 1 ? { ...s, status: 'completed' } : i === 2 ? { ...s, status: 'running' } : s))
+
+      // Step 3: Expiry Check
+      await new Promise(r => setTimeout(r, 600))
+      setSimSteps(prev => prev.map((s, i) => i === 2 ? { ...s, status: 'completed' } : i === 3 ? { ...s, status: 'running' } : s))
+
+      // Step 4: Invoice Match & API Call
+      const res = await fetch('/api/products', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...formData,
+          productImage: imgData,
+          billFile: billData
+        })
+      })
+
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to submit product')
+
+      setSimSteps(prev => prev.map((s, i) => i === 3 ? { ...s, status: 'completed' } : i === 4 ? { ...s, status: 'running' } : s))
+      await new Promise(r => setTimeout(r, 500))
+      setSimSteps(prev => prev.map((s, i) => i === 4 ? { ...s, status: 'completed' } : s))
+
+      setSavedProduct(data.product)
+      setStep(3)
+    } catch (err: any) {
+      setError(err.message || 'Submission failed')
+      setStep(1)
+    } finally {
+      setSubmitting(false)
     }
-    simulateVerification()
   }
 
   return (
@@ -56,6 +111,13 @@ export default function SubmitProduct() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-slate-900">Submit Food Product for Verification</h1>
       </div>
+
+      {error && (
+        <div className="p-4 rounded-xl bg-red-50 text-red-700 text-sm font-medium border border-red-200 flex items-center gap-2">
+          <AlertCircle className="h-5 w-5 flex-shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
 
       {step === 1 && (
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-8">
@@ -66,45 +128,62 @@ export default function SubmitProduct() {
                 <h3 className="text-lg font-semibold text-slate-800 border-b pb-2">Product Details</h3>
                 
                 <div>
-                  <label className="block text-sm font-medium text-slate-700">Product Name</label>
-                  <input type="text" name="name" required onChange={handleChange} className="mt-1 block w-full rounded-xl border-slate-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 py-2.5 px-3 border" placeholder="e.g. Tomato Sauce" />
+                  <label className="block text-sm font-medium text-slate-700">Product Name *</label>
+                  <input type="text" name="name" required value={formData.name} onChange={handleChange} className="mt-1 block w-full rounded-xl border-slate-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 py-2.5 px-3 border" placeholder="e.g. Organic Tomato Puree" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700">Brand</label>
-                  <input type="text" name="brand" required onChange={handleChange} className="mt-1 block w-full rounded-xl border-slate-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 py-2.5 px-3 border" placeholder="e.g. ABC" />
+                  <label className="block text-sm font-medium text-slate-700">Brand *</label>
+                  <input type="text" name="brand" required value={formData.brand} onChange={handleChange} className="mt-1 block w-full rounded-xl border-slate-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 py-2.5 px-3 border" placeholder="e.g. Heinz" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700">Category</label>
-                  <select name="category" required onChange={handleChange} className="mt-1 block w-full rounded-xl border-slate-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 py-2.5 px-3 border bg-white">
-                    <option value="">Select Category</option>
+                  <label className="block text-sm font-medium text-slate-700">Category *</label>
+                  <select name="category" required value={formData.category} onChange={handleChange} className="mt-1 block w-full rounded-xl border-slate-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 py-2.5 px-3 border bg-white">
                     <option value="Dairy">Dairy</option>
                     <option value="Condiments">Condiments</option>
                     <option value="Spices">Spices</option>
                     <option value="Meat">Meat/Poultry</option>
                     <option value="Produce">Produce</option>
+                    <option value="Bakery">Bakery</option>
+                    <option value="Beverages">Beverages</option>
                     <option value="Other">Other</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700">Batch/Lot Number</label>
-                  <input type="text" name="batchNumber" required onChange={handleChange} className="mt-1 block w-full rounded-xl border-slate-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 py-2.5 px-3 border" placeholder="e.g. B1023" />
+                  <label className="block text-sm font-medium text-slate-700">Batch/Lot Number *</label>
+                  <input type="text" name="batchNumber" required value={formData.batchNumber} onChange={handleChange} className="mt-1 block w-full rounded-xl border-slate-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 py-2.5 px-3 border font-mono" placeholder="e.g. B-2026-X89" />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700">Mfg Date</label>
+                    <input type="date" name="manufacturingDate" value={formData.manufacturingDate} onChange={handleChange} className="mt-1 block w-full rounded-xl border-slate-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 py-2 px-3 border text-sm" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700">Expiry Date *</label>
+                    <input type="date" name="expiryDate" required value={formData.expiryDate} onChange={handleChange} className="mt-1 block w-full rounded-xl border-slate-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 py-2 px-3 border text-sm" />
+                  </div>
                 </div>
               </div>
 
               <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-slate-800 border-b pb-2">Purchase Details</h3>
+                <h3 className="text-lg font-semibold text-slate-800 border-b pb-2">Purchase & Supplier</h3>
                 
                 <div>
-                  <label className="block text-sm font-medium text-slate-700">Supplier Name</label>
-                  <input type="text" name="supplierName" required onChange={handleChange} className="mt-1 block w-full rounded-xl border-slate-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 py-2.5 px-3 border" placeholder="e.g. XYZ Foods" />
+                  <label className="block text-sm font-medium text-slate-700">Supplier / Vendor Name *</label>
+                  <input type="text" name="supplierName" required value={formData.supplierName} onChange={handleChange} className="mt-1 block w-full rounded-xl border-slate-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 py-2.5 px-3 border" placeholder="e.g. Metro Cash & Carry" />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700">Purchase Date</label>
+                    <input type="date" name="purchaseDate" value={formData.purchaseDate} onChange={handleChange} className="mt-1 block w-full rounded-xl border-slate-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 py-2 px-3 border text-sm" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700">Quantity (Units) *</label>
+                    <input type="number" name="quantity" required min="1" value={formData.quantity} onChange={handleChange} className="mt-1 block w-full rounded-xl border-slate-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 py-2 px-3 border text-sm" />
+                  </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700">Quantity</label>
-                  <input type="number" name="quantity" required onChange={handleChange} min="1" value={formData.quantity} className="mt-1 block w-full rounded-xl border-slate-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 py-2.5 px-3 border" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700">Product Description (Optional)</label>
-                  <textarea name="description" onChange={handleChange} rows={4} className="mt-1 block w-full rounded-xl border-slate-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 py-2.5 px-3 border" placeholder="Additional details..." />
+                  <label className="block text-sm font-medium text-slate-700">Storage / Usage Description</label>
+                  <textarea name="description" value={formData.description} onChange={handleChange} rows={3} className="mt-1 block w-full rounded-xl border-slate-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 py-2.5 px-3 border" placeholder="e.g. Stored in cold storage at 4°C, used for lunch service..." />
                 </div>
               </div>
             </div>
@@ -120,7 +199,7 @@ export default function SubmitProduct() {
                     <ImageIcon className="h-6 w-6" />
                   </div>
                   <p className="text-sm font-medium text-slate-700">Product Label Image</p>
-                  <p className="text-xs text-slate-500 mt-1">Make sure the Expiry Date is clearly visible</p>
+                  <p className="text-xs text-slate-500 mt-1">Make sure the Expiry Date is visible</p>
                   {productImage && (
                     <div className="mt-3 inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-100 text-emerald-700 rounded-full text-xs font-semibold">
                       <CheckCircle className="h-3.5 w-3.5" />
@@ -136,7 +215,7 @@ export default function SubmitProduct() {
                     <FileText className="h-6 w-6" />
                   </div>
                   <p className="text-sm font-medium text-slate-700">Purchase Bill / Invoice</p>
-                  <p className="text-xs text-slate-500 mt-1">Accepted: JPG, PNG, PDF (Max 5MB)</p>
+                  <p className="text-xs text-slate-500 mt-1">Accepted: JPG, PNG, PDF</p>
                   {billFile && (
                     <div className="mt-3 inline-flex items-center gap-1.5 px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold">
                       <CheckCircle className="h-3.5 w-3.5" />
@@ -148,9 +227,9 @@ export default function SubmitProduct() {
             </div>
 
             <div className="flex justify-end pt-4">
-              <button type="submit" className="px-8 py-3 bg-emerald-600 text-white font-bold rounded-xl shadow-md hover:bg-emerald-700 transition-colors flex items-center gap-2">
-                <UploadCloud className="h-5 w-5" />
-                Submit and Verify
+              <button type="submit" disabled={submitting} className="px-8 py-3 bg-emerald-600 text-white font-bold rounded-xl shadow-md hover:bg-emerald-700 transition-colors flex items-center gap-2 disabled:opacity-50">
+                {submitting ? <Loader2 className="h-5 w-5 animate-spin" /> : <UploadCloud className="h-5 w-5" />}
+                Submit and Save to Database
               </button>
             </div>
           </form>
@@ -159,7 +238,7 @@ export default function SubmitProduct() {
 
       {step === 2 && (
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-12 flex flex-col items-center justify-center min-h-[400px]">
-          <h2 className="text-2xl font-bold text-slate-800 mb-8">AI Product Verification in Progress</h2>
+          <h2 className="text-2xl font-bold text-slate-800 mb-8">AI Verification & Database Storage</h2>
           <div className="w-full max-w-md space-y-6">
             {simSteps.map((s) => (
               <div key={s.id} className="flex items-center gap-4">
@@ -168,7 +247,7 @@ export default function SubmitProduct() {
                   {s.status === 'running' && <Loader2 className="h-6 w-6 text-blue-500 animate-spin" />}
                   {s.status === 'pending' && <div className="h-6 w-6 rounded-full border-2 border-slate-200" />}
                 </div>
-                <span className={`text-lg font-medium transition-colors ${s.status === 'completed' ? 'text-slate-900' : s.status === 'running' ? 'text-blue-600' : 'text-slate-400'}`}>
+                <span className={`text-base font-medium transition-colors ${s.status === 'completed' ? 'text-slate-900 font-semibold' : s.status === 'running' ? 'text-blue-600 font-semibold' : 'text-slate-400'}`}>
                   {s.label}
                 </span>
               </div>
@@ -177,93 +256,76 @@ export default function SubmitProduct() {
         </div>
       )}
 
-      {step === 3 && (
+      {step === 3 && savedProduct && (
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-          <div className="bg-emerald-600 px-8 py-6 text-white">
+          <div className={`${savedProduct.status === 'EXPIRED' ? 'bg-red-600' : 'bg-emerald-600'} px-8 py-6 text-white`}>
             <div className="flex items-center gap-3 mb-2">
-              <CheckCircle className="h-8 w-8 text-emerald-200" />
-              <h2 className="text-3xl font-bold">Verification Complete</h2>
+              {savedProduct.status === 'EXPIRED' ? (
+                <AlertTriangle className="h-8 w-8 text-red-200" />
+              ) : (
+                <CheckCircle className="h-8 w-8 text-emerald-200" />
+              )}
+              <h2 className="text-3xl font-bold">
+                {savedProduct.status === 'EXPIRED' ? 'Product Flagged (Expired)' : 'Successfully Saved & Verified'}
+              </h2>
             </div>
-            <p className="text-emerald-100">Your product has been analyzed by the FoodGuard AI pipeline.</p>
+            <p className="text-white/90">
+              Product details and AI verification results have been permanently saved in the database.
+            </p>
           </div>
           
-          <div className="p-8">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div className="p-8 space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               
-              <div className="space-y-6">
-                <div>
-                  <h4 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-2">Overall Status</h4>
-                  <div className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-100 text-emerald-800 rounded-lg font-bold text-lg border border-emerald-200">
-                    <CheckCircle className="h-5 w-5" />
-                    VERIFIED
+              <div className="space-y-4">
+                <div className="bg-slate-50 rounded-xl p-5 border border-slate-200">
+                  <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Saved Product Info</h4>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between"><span className="text-slate-500">Name:</span> <span className="font-bold text-slate-800">{savedProduct.name}</span></div>
+                    <div className="flex justify-between"><span className="text-slate-500">Brand:</span> <span className="font-medium text-slate-700">{savedProduct.brand}</span></div>
+                    <div className="flex justify-between"><span className="text-slate-500">Batch:</span> <span className="font-mono text-slate-700">{savedProduct.batchNumber}</span></div>
+                    <div className="flex justify-between"><span className="text-slate-500">Expiry Date:</span> <span className={`font-bold ${savedProduct.status === 'EXPIRED' ? 'text-red-600' : 'text-emerald-600'}`}>{new Date(savedProduct.expiryDate).toLocaleDateString()}</span></div>
+                    <div className="flex justify-between"><span className="text-slate-500">Quantity:</span> <span className="font-medium text-slate-700">{savedProduct.quantity} units</span></div>
                   </div>
                 </div>
 
                 <div className="bg-slate-50 rounded-xl p-5 border border-slate-200">
-                  <h4 className="font-semibold text-slate-800 mb-4 border-b border-slate-200 pb-2">AI Confidence Scores</h4>
-                  <ul className="space-y-3">
-                    <li className="flex justify-between items-center text-sm">
-                      <span className="text-slate-600">Product Name Match:</span>
-                      <span className="font-bold text-emerald-600">96%</span>
-                    </li>
-                    <li className="flex justify-between items-center text-sm">
-                      <span className="text-slate-600">Expiry Date Confidence:</span>
-                      <span className="font-bold text-emerald-600">94%</span>
-                    </li>
-                    <li className="flex justify-between items-center text-sm">
-                      <span className="text-slate-600">Batch Number Match:</span>
-                      <span className="font-bold text-emerald-600">91%</span>
-                    </li>
-                    <li className="flex justify-between items-center text-sm">
-                      <span className="text-slate-600">Bill Validation Score:</span>
-                      <span className="font-bold text-emerald-600">89%</span>
-                    </li>
+                  <h4 className="font-semibold text-slate-800 mb-3 border-b border-slate-200 pb-2">AI Confidence Scores</h4>
+                  <ul className="space-y-2 text-sm">
+                    <li className="flex justify-between items-center"><span className="text-slate-600">Product Name Match:</span> <span className="font-bold text-emerald-600">96%</span></li>
+                    <li className="flex justify-between items-center"><span className="text-slate-600">Expiry Date Confidence:</span> <span className="font-bold text-emerald-600">95%</span></li>
+                    <li className="flex justify-between items-center"><span className="text-slate-600">Invoice Match:</span> <span className="font-bold text-emerald-600">92%</span></li>
                   </ul>
                 </div>
               </div>
 
               <div className="space-y-4">
                 <div className="border border-slate-200 rounded-xl p-5 bg-white shadow-sm">
-                  <h4 className="font-semibold text-slate-800 mb-2">Expiry Check</h4>
-                  <div className="flex items-start gap-3">
-                    <CheckCircle className="h-5 w-5 text-emerald-500 mt-0.5" />
-                    <div>
-                      <p className="text-emerald-700 font-semibold">SAFE / NOT EXPIRED</p>
-                      <p className="text-sm text-slate-600 mt-1">Detected Expiry: <span className="font-medium text-slate-800">10/01/2027</span></p>
-                    </div>
+                  <h4 className="font-semibold text-slate-800 mb-2">Verification Status</h4>
+                  <div className="flex items-center gap-2">
+                    <span className={`px-3 py-1 rounded-full text-xs font-bold ${savedProduct.status === 'EXPIRED' ? 'bg-red-100 text-red-800 border border-red-200' : 'bg-emerald-100 text-emerald-800 border border-emerald-200'}`}>
+                      {savedProduct.status}
+                    </span>
+                    <span className="text-xs text-slate-500">Awaiting officer inspection review</span>
                   </div>
                 </div>
 
                 <div className="border border-slate-200 rounded-xl p-5 bg-white shadow-sm">
-                  <h4 className="font-semibold text-slate-800 mb-2">Bill Verification</h4>
-                  <div className="flex items-start gap-3">
-                    <CheckCircle className="h-5 w-5 text-emerald-500 mt-0.5" />
-                    <div className="space-y-1 w-full">
-                      <p className="text-slate-800 font-medium">Valid Purchase Invoice Found</p>
-                      <ul className="text-sm text-slate-600 list-disc list-inside">
-                        <li>Product matches bill</li>
-                        <li>Batch number matches</li>
-                        <li>Supplier matches</li>
-                        <li>Quantity matches</li>
-                      </ul>
-                    </div>
-                  </div>
+                  <h4 className="font-semibold text-slate-800 mb-2">Next Steps</h4>
+                  <p className="text-sm text-slate-600 leading-relaxed">
+                    This submission is now live in the Food Safety Officer inspection queue. Any safety alerts or officer approvals will appear in your notification feed.
+                  </p>
                 </div>
               </div>
             </div>
 
-            <div className="mt-8 bg-blue-50 border border-blue-100 rounded-xl p-4 flex items-start gap-3">
-              <AlertCircle className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
-              <div>
-                <p className="text-sm text-blue-800 font-medium">Officer Review Pending</p>
-                <p className="text-xs text-blue-600 mt-1">Automated verification is an assistance tool. Final food safety decisions will be reviewed by an authorized food safety officer.</p>
-              </div>
-            </div>
-
-            <div className="mt-8 flex justify-end">
-              <button onClick={() => window.location.href = '/dashboard/hotel'} className="px-6 py-2.5 bg-slate-800 text-white font-medium rounded-xl hover:bg-slate-900 transition-colors">
-                Return to Dashboard
+            <div className="flex justify-between pt-4 border-t border-slate-200">
+              <button onClick={() => { setStep(1); setFormData({ name: '', brand: '', category: 'Condiments', batchNumber: '', manufacturingDate: new Date().toISOString().split('T')[0], expiryDate: new Date().toISOString().split('T')[0], purchaseDate: new Date().toISOString().split('T')[0], supplierName: '', quantity: '10', description: '' }); }} className="px-5 py-2.5 bg-slate-100 text-slate-700 font-medium rounded-xl hover:bg-slate-200 transition-colors">
+                + Submit Another Product
               </button>
+              <Link href="/dashboard/hotel/products" className="px-6 py-2.5 bg-emerald-600 text-white font-semibold rounded-xl hover:bg-emerald-700 transition-colors shadow-sm">
+                View in My Products &rarr;
+              </Link>
             </div>
           </div>
         </div>

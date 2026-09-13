@@ -3,6 +3,7 @@ import { decrypt } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { CheckCircle, AlertTriangle, FileText, Image as ImageIcon, MapPin, Building, Calendar, Info, ShieldCheck } from 'lucide-react'
 import Link from 'next/link'
+import InspectionActionForm from './InspectionActionForm'
 
 export default async function OfficerInspectionDetails({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -167,50 +168,8 @@ export default async function OfficerInspectionDetails({ params }: { params: Pro
             </div>
           </div>
 
-          {/* Officer Action Form */}
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-            <h3 className="text-lg font-bold text-slate-900 mb-4">Officer Action</h3>
-            <form className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">Inspection Comments</label>
-                <textarea rows={4} className="w-full rounded-xl border-slate-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 py-2.5 px-3 border" placeholder="Enter findings or notes from digital inspection..."></textarea>
-              </div>
-
-              {isExpired && (
-                <div className="grid grid-cols-2 gap-4 bg-red-50 p-4 rounded-xl border border-red-100">
-                  <div>
-                    <label className="block text-sm font-medium text-red-900 mb-2">Violation Type</label>
-                    <select className="w-full rounded-xl border-red-200 shadow-sm focus:border-red-500 focus:ring-red-500 py-2.5 px-3 border bg-white">
-                      <option>Expired Food Product</option>
-                      <option>Incorrect Labeling</option>
-                      <option>Counterfeit Product</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-red-900 mb-2">Severity</label>
-                    <select className="w-full rounded-xl border-red-200 shadow-sm focus:border-red-500 focus:ring-red-500 py-2.5 px-3 border bg-white">
-                      <option value="CRITICAL">CRITICAL</option>
-                      <option value="HIGH">HIGH</option>
-                      <option value="MEDIUM">MEDIUM</option>
-                      <option value="LOW">LOW</option>
-                    </select>
-                  </div>
-                </div>
-              )}
-
-              <div className="flex gap-4 pt-4 border-t border-slate-100">
-                <button type="button" className="flex-1 bg-emerald-600 text-white py-3 rounded-xl font-bold hover:bg-emerald-700 transition-colors shadow-sm">
-                  Approve Verification
-                </button>
-                <button type="button" className="flex-1 bg-red-600 text-white py-3 rounded-xl font-bold hover:bg-red-700 transition-colors shadow-sm">
-                  {isExpired ? 'Log Violation & Reject' : 'Reject Submission'}
-                </button>
-                <button type="button" className="flex-1 bg-slate-800 text-white py-3 rounded-xl font-bold hover:bg-slate-900 transition-colors shadow-sm">
-                  Flag for Manual Inspection
-                </button>
-              </div>
-            </form>
-          </div>
+          {/* Officer Action Form Component */}
+          <InspectionActionForm productId={product.id} isExpired={!!isExpired} />
 
         </div>
       </div>
